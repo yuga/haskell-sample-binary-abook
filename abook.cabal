@@ -1,0 +1,45 @@
+name:                abook
+version:             0.0.1.0
+synopsis:            A sample of dealing with binary file.
+description:         This is a sample program to deal with binary file in Haskell.
+homepage:            http://twitter.com/yuga
+license:             BSD3
+license-file:        LICENSE
+author:              Shohei Murayama
+maintainer:          shohei.murayama@gmail.com
+copyright:           Copyright (c) 2013 Shohei Murayama
+category:            Sample Code
+build-type:          Simple
+cabal-version:       >=1.10
+
+-- source-repository    head
+--  type:              git
+--  location:          https://github.com/yuga/haskell-sample-binary-abook
+
+executable abook
+  default-language:    Haskell2010
+  build-depends:         base <5
+
+                       -- General
+                       , bytestring
+                       , containers >=0.5
+                       , transformers
+
+                       -- Binary
+                       , binary >=0.7
+                       , binary-bits >=0.3
+                       , binary-file >=0.15
+                       , binary-strict >=0.4.8
+                       , cereal >=0.4
+                       , mmap >=0.5
+                       , safecopy >=0.8
+
+                       -- Text
+                       , utf8-string
+  other-modules:         Book
+                       , BookBinary
+                       , BOokCereal
+                       , BookForeign
+  main-is:             Main.hs
+  hs-source-dirs:      src
+  ghc-options:         -Wall 
