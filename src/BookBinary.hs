@@ -24,25 +24,17 @@ import qualified System.IO as IO
 
 import Book hiding (header, people)
 
---import Control.Monad (join)
---import Debug.Trace (trace, traceShow)
---join traceShow $ something
-
---
--- reading and writing binary file with Data.Binary.* in binary package
---
-
 instance Binary Header where
     get = do
         header <- Bits.runBitGet $
             Header <$> Bits.getWord8 4
-                <*> Bits.getWord8 2
-                <*> Bits.getWord8 2
-                <*> Bits.getBool
-                <*> Bits.getBool
-                <*> Bits.getBool
-                <*> Bits.getBool
-                <*> Bits.getBool
+                   <*> Bits.getWord8 2
+                   <*> Bits.getWord8 2
+                   <*> Bits.getBool
+                   <*> Bits.getBool
+                   <*> Bits.getBool
+                   <*> Bits.getBool
+                   <*> Bits.getBool
         header <$> getWord32le <* skip 2
     put (Header v m s a0 a1 a2 a3 a4 n) = do
         Bits.runBitPut $ do

@@ -4,7 +4,6 @@ module BookForeign where
 
 import Codec.Binary.UTF8.String (decode, encode)
 import Control.Applicative ((<$>), (<*>))
---import Control.Exception (bracket)
 import Control.Monad (void)
 import Data.Bits (shift, shiftR, (.&.), (.|.))
 import qualified Data.ByteString as S
@@ -13,18 +12,11 @@ import qualified Data.ByteString.Unsafe as S
 import Data.Word (Word8, Word32)
 import Foreign.C.String (peekCString, withCStringLen)
 import Foreign.Marshal (allocaBytes, copyBytes, peekArray0, pokeArray)
---import Foreign.Marshal.Alloc (allocaBytes, mallocBytes, free)
---import Foreign.Marshal.Array (peekArray0, withArrayLen)
---import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Ptr (Ptr, castPtr, plusPtr)
 import Foreign.Storable (Storable (..))
 import qualified System.IO as IO
 
 import Book hiding (header, people)
-
---
--- reading and writing binary file with Foreign in base package
---
 
 instance Storable Header where
     sizeOf _ = 8
@@ -104,10 +96,6 @@ pokeCStringByteOff ptr off cap s = withCStringLen s $ \(cptr,clen) -> do
     copyBytes p cptr (min clen (cap - 1))
 
 pokeUTF8StringByteOff :: Ptr a -> Int -> Int -> String -> IO ()
---pokeUTF8StringByteOff ptr off cap s = withArrayLen (encode s) $ \wlen wptr -> do
---    let p = ptr `plusPtr` off
---    void $ S.memset (castPtr p) 0 (fromIntegral cap)
---    copyBytes p wptr (min wlen (cap - 1))
 pokeUTF8StringByteOff ptr off cap s = do
     let p = ptr `plusPtr` off
     void $ S.memset (castPtr p) 0 (fromIntegral cap)
