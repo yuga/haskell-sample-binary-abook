@@ -75,7 +75,6 @@ instance Storable Address where
 
 peekByteOffCString :: Ptr a -> Int -> Int -> IO String
 peekByteOffCString ptr off cap =
-    --bracket (mallocBytes cap) free $ \tptr -> do
     allocaBytes cap $ \tptr -> do
         copyBytes tptr (ptr `plusPtr` off) (cap - 1)
         void $ S.memset (castPtr tptr `plusPtr` (cap - 1)) 0 1
@@ -83,7 +82,6 @@ peekByteOffCString ptr off cap =
 
 peekByteOffUTF8String :: Ptr a -> Int -> Int -> IO String
 peekByteOffUTF8String ptr off cap =
-    --bracket (mallocBytes cap) free $ \wptr -> do
     allocaBytes cap $ \wptr -> do
         copyBytes wptr (ptr `plusPtr` off) (cap - 1)
         void $ S.memset (castPtr wptr `plusPtr` (cap - 1)) 0 1
