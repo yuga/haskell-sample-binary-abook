@@ -42,22 +42,22 @@ import GHC.Generics (Generic)
 -- --------
 
 data Header = Header
-    { version  :: !Word8
-    , mtype    :: !Word8
-    , stype    :: !Word8
-    , attr0    :: !Bool
-    , attr1    :: !Bool
-    , attr2    :: !Bool
-    , attr3    :: !Bool
-    , attr4    :: !Bool
-    , number   :: !Word32
+    { version   :: !Word8
+    , mtype     :: !Word8
+    , stype     :: !Word8
+    , attr0     :: !Bool
+    , attr1     :: !Bool
+    , attr2     :: !Bool
+    , attr3     :: !Bool
+    , attr4     :: !Bool
+    , number    :: !Word32
     }
     deriving (Show)
 
 data Person = Person
-    { name     :: !String
-    , address  :: !Address
-    , salary   :: !Word16
+    { name      :: !String
+    , address   :: !Address
+    , salary    :: !Word16
     }
     deriving (Show)
 
@@ -70,7 +70,10 @@ data Address = Address
     }
     deriving (Show)
 
-data Book = Book Header People
-          deriving (Generic, Show)
+data Book = Book
+    { header    :: !Header
+    , people    :: !People
+    }
+    deriving (Generic, Show)
 
 type People = Map String Person

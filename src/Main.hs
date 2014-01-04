@@ -11,7 +11,7 @@ import System.Exit (ExitCode (ExitFailure), exitWith)
 import qualified System.IO as IO
 import qualified System.IO.Error as IO
 
-import Book
+import Book hiding (header, people)
 import BookBinary
 import BookBinaryStrict
 import BookCereal

@@ -12,9 +12,9 @@ category:            Sample Code
 build-type:          Simple
 cabal-version:       >=1.10
 
--- source-repository    head
---  type:              git
---  location:          https://github.com/yuga/haskell-sample-binary-abook
+source-repository    head
+  type:              git
+  location:          git://github.com/yuga/haskell-sample-binary-abook
 
 executable abook
   default-language:    Haskell2010

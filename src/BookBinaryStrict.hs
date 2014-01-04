@@ -3,7 +3,7 @@
 module BookBinaryStrict where
 
 import Codec.Binary.UTF8.String (decode)
-import Control.Applicative (Applicative (..), (<$>), (<*>), (<*))
+import Control.Applicative ((<$>), (<*>), (<*))
 import qualified Data.Binary.Strict.BitGet as BitGet
 import Data.Binary.Strict.Get
 import qualified Data.ByteString as S
@@ -13,7 +13,7 @@ import Foreign.Ptr (castPtr)
 import Foreign.Storable (Storable (peek))
 import qualified System.IO.Unsafe as IO
 
-import Book
+import Book hiding (header, people)
 
 readHeaderBS :: Get Header
 readHeaderBS = do
@@ -37,7 +37,7 @@ readPersonBS :: Get Person
 readPersonBS =
     Person <$> getUTF8StringNul 128
            <*> readAddressBS
-           <*> (getWord16le <* skip 6)
+           <*> getWord16le <* skip 6
 
 readAddressBS :: Get Address
 readAddressBS =

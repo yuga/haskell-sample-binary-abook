@@ -3,8 +3,8 @@
 module BookForeign where
 
 import Codec.Binary.UTF8.String (decode, encode)
-import Control.Applicative ((<$>))
-import Control.Exception (bracket)
+import Control.Applicative ((<$>), (<*>))
+--import Control.Exception (bracket)
 import Control.Monad (void)
 import Data.Bits (shift, shiftR, (.&.), (.|.))
 import qualified Data.ByteString as S
@@ -12,13 +12,15 @@ import qualified Data.ByteString.Internal as S
 import qualified Data.ByteString.Unsafe as S
 import Data.Word (Word8, Word32)
 import Foreign.C.String (peekCString, withCStringLen)
-import Foreign.Marshal.Alloc (mallocBytes, free)
-import Foreign.Marshal.Array (peekArray0, withArrayLen)
+import Foreign.Marshal (allocaBytes, copyBytes, peekArray0, pokeArray)
+--import Foreign.Marshal.Alloc (allocaBytes, mallocBytes, free)
+--import Foreign.Marshal.Array (peekArray0, withArrayLen)
+--import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Ptr (Ptr, castPtr, plusPtr)
 import Foreign.Storable (Storable (..))
 import qualified System.IO as IO
 
-import Book
+import Book hiding (header, people)
 
 --
 -- reading and writing binary file with Foreign in base package
@@ -56,11 +58,9 @@ instance Storable Header where
 instance Storable Person where
     sizeOf _ = 360
     alignment _ = 8
-    peek p = do
-        n <- peekByteOffUTF8String p 0 128
-        a <- peekByteOff p 128
-        s <- peekByteOff p 352
-        return $ Person n a s        
+    peek p = Person <$> peekByteOffUTF8String p 0 128
+                    <*> peekByteOff p 128
+                    <*> peekByteOff p 352
     poke p (Person n a s) = do
         pokeUTF8StringByteOff p 0 128 n
         pokeByteOff p 128 a
@@ -69,13 +69,11 @@ instance Storable Person where
 instance Storable Address where
     sizeOf _ = 224
     alignment _ = 8
-    peek p = do
-        r  <- peekByteOffUTF8String p   0 128
-        c  <- peekByteOffUTF8String p 128  64
-        pc <- peekByteOffUTF8String p 192  16
-        la <- peekByteOff p 208
-        lo <- peekByteOff p 216
-        return $ Address r c pc la lo
+    peek p = Address <$> peekByteOffUTF8String p   0 128
+                     <*> peekByteOffUTF8String p 128  64
+                     <*> peekByteOffUTF8String p 192  16
+                     <*> peekByteOff p 208
+                     <*> peekByteOff p 216
     poke p (Address r c pc la lo) = do
         pokeUTF8StringByteOff p   0 128 r
         pokeUTF8StringByteOff p 128  64 c
@@ -85,15 +83,17 @@ instance Storable Address where
 
 peekByteOffCString :: Ptr a -> Int -> Int -> IO String
 peekByteOffCString ptr off cap =
-    bracket (mallocBytes cap) free $ \tptr -> do
-        S.memcpy (castPtr tptr) (castPtr ptr `plusPtr` off) (cap - 1)
+    --bracket (mallocBytes cap) free $ \tptr -> do
+    allocaBytes cap $ \tptr -> do
+        copyBytes tptr (ptr `plusPtr` off) (cap - 1)
         void $ S.memset (castPtr tptr `plusPtr` (cap - 1)) 0 1
         peekCString tptr
 
 peekByteOffUTF8String :: Ptr a -> Int -> Int -> IO String
 peekByteOffUTF8String ptr off cap =
-    bracket (mallocBytes cap) free $ \wptr -> do
-        S.memcpy wptr (castPtr ptr `plusPtr` off) (cap - 1)
+    --bracket (mallocBytes cap) free $ \wptr -> do
+    allocaBytes cap $ \wptr -> do
+        copyBytes wptr (ptr `plusPtr` off) (cap - 1)
         void $ S.memset (castPtr wptr `plusPtr` (cap - 1)) 0 1
         decode <$> peekArray0 0 wptr
 
@@ -101,23 +101,27 @@ pokeCStringByteOff :: Ptr a -> Int -> Int -> String -> IO ()
 pokeCStringByteOff ptr off cap s = withCStringLen s $ \(cptr,clen) -> do
     let p = ptr `plusPtr` off
     void $ S.memset (castPtr p) 0 (fromIntegral cap)
-    S.memcpy (castPtr p) (castPtr cptr) (min clen (cap - 1))
+    copyBytes p cptr (min clen (cap - 1))
 
 pokeUTF8StringByteOff :: Ptr a -> Int -> Int -> String -> IO ()
-pokeUTF8StringByteOff ptr off cap s = withArrayLen (encode s) $ \wlen wptr -> do
+--pokeUTF8StringByteOff ptr off cap s = withArrayLen (encode s) $ \wlen wptr -> do
+--    let p = ptr `plusPtr` off
+--    void $ S.memset (castPtr p) 0 (fromIntegral cap)
+--    copyBytes p wptr (min wlen (cap - 1))
+pokeUTF8StringByteOff ptr off cap s = do
     let p = ptr `plusPtr` off
     void $ S.memset (castPtr p) 0 (fromIntegral cap)
-    S.memcpy (castPtr p) wptr (min wlen (cap - 1))
+    pokeArray p $ take (cap - 1) . encode $ s
 
 readHeaderF :: Ptr Header -> IO Header
 readHeaderF = peek
 
 readPeopleF :: Word32 -> Ptr Person -> IO [Person]
 readPeopleF 0 _ = return []
-readPeopleF n p = do
-    person <- peek p
-    people <- readPeopleF (n-1) (p `plusPtr` sizeOf (undefined :: Person))
-    return $ person : people
+readPeopleF n ptr = do
+    p  <- peek ptr
+    ps <- readPeopleF (n-1) (ptr `plusPtr` sizeOf (undefined :: Person))
+    return (p:ps)
 
 readF :: FilePath -> IO (Header, [Person])
 readF f = do
@@ -128,11 +132,10 @@ readF f = do
         return (header,people)
 
 writeF :: FilePath -> (Header, [Person]) -> IO ()
-writeF f (header, people) =
-    IO.withFile f IO.WriteMode $ \h -> do
-        bsh <- S.create (sizeOf (undefined :: Header)) $ \p ->
-            poke (castPtr p) header
-        bsp <- flip mapM people $ \person -> do
-            S.create (sizeOf (undefined :: Person)) $ \p ->
-                poke (castPtr p) person 
-        mapM_ (S.hPut h) (bsh:bsp)
+writeF f (header, people) = IO.withFile f IO.WriteMode $ \h -> do
+    bsh <- S.create (sizeOf (undefined :: Header)) $ \p ->
+        poke (castPtr p) header
+    bsp <- flip mapM people $ \person ->
+        S.create (sizeOf (undefined :: Person)) $ \p ->
+            poke (castPtr p) person 
+    mapM_ (S.hPut h) (bsh:bsp)

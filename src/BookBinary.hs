@@ -22,7 +22,7 @@ import Foreign.Ptr (castPtr)
 import Foreign.Storable (Storable (peek, poke))
 import qualified System.IO as IO
 
-import Book
+import Book hiding (header, people)
 
 --import Control.Monad (join)
 --import Debug.Trace (trace, traceShow)
@@ -32,61 +32,53 @@ import Book
 -- reading and writing binary file with Data.Binary.* in binary package
 --
 
-readHeaderB :: Get Header
-readHeaderB = do
-    header <- Bits.runBitGet $
-        Header <$> Bits.getWord8 4
-               <*> Bits.getWord8 2
-               <*> Bits.getWord8 2
-               <*> Bits.getBool
-               <*> Bits.getBool
-               <*> Bits.getBool
-               <*> Bits.getBool
-               <*> Bits.getBool
-    header <$> getWord32le <* skip 2
+instance Binary Header where
+    get = do
+        header <- Bits.runBitGet $
+            Header <$> Bits.getWord8 4
+                <*> Bits.getWord8 2
+                <*> Bits.getWord8 2
+                <*> Bits.getBool
+                <*> Bits.getBool
+                <*> Bits.getBool
+                <*> Bits.getBool
+                <*> Bits.getBool
+        header <$> getWord32le <* skip 2
+    put (Header v m s a0 a1 a2 a3 a4 n) = do
+        Bits.runBitPut $ do
+            Bits.putWord8 4 v
+            Bits.putWord8 2 m
+            Bits.putWord8 2 s
+            Bits.putBool a0
+            Bits.putBool a1
+            Bits.putBool a2
+            Bits.putBool a3
+            Bits.putBool a4
+        putWord32le n
+        putZero 2
 
-writeHeaderB :: Header -> Put
-writeHeaderB (Header v m s a0 a1 a2 a3 a4 n) = do
-    Bits.runBitPut $ do
-        Bits.putWord8 4 v
-        Bits.putWord8 2 m
-        Bits.putWord8 2 s
-        Bits.putBool a0
-        Bits.putBool a1
-        Bits.putBool a2
-        Bits.putBool a3
-        Bits.putBool a4
-    putWord32le n
-    putZero 2
+instance Binary Person where
+    get = Person <$> getUTF8StringNul 128
+                 <*> get
+                 <*> getWord16le <* skip 6
+    put (Person n a s) = do
+        putUTF8StringNul 128 n
+        put a
+        putWord16le s
+        putZero 6
 
-readPersonB :: Get Person
-readPersonB =
-    Person <$> (getUTF8StringNul 128)
-           <*> get
-           <*> (getWord16le <* skip 6)
-
-writePersonB :: Person -> Put
-writePersonB (Person n a s) = do
-    putUTF8StringNul 128 n
-    put a
-    putWord16le s
-    putZero 6
-
-readAddressB :: Get Address
-readAddressB =
-    Address <$> (getUTF8StringNul 128)
-            <*> (getUTF8StringNul  64)
-            <*> (getUTF8StringNul  16)
-            <*> getDouble
-            <*> getDouble
-
-writeAddressB :: Address -> Put
-writeAddressB (Address r c pc la lo) = do
-    putUTF8StringNul 128 r
-    putUTF8StringNul  64 c
-    putUTF8StringNul  16 pc
-    putDouble la
-    putDouble lo
+instance Binary Address where
+    get = Address <$> getUTF8StringNul 128
+                  <*> getUTF8StringNul  64
+                  <*> getUTF8StringNul  16
+                  <*> getDouble
+                  <*> getDouble
+    put (Address r c pc la lo) = do
+        putUTF8StringNul 128 r
+        putUTF8StringNul  64 c
+        putUTF8StringNul  16 pc
+        putDouble la
+        putDouble lo
 
 getUTF8StringNul :: Int -> Get String
 getUTF8StringNul n = toStringNul <$> getByteString n
@@ -113,24 +105,12 @@ putDouble d = putBuilder $ writeN 8 $ \p -> poke (castPtr p) d
 putZero :: Int -> Put
 putZero n = putBuilder $ writeN n $ \p -> void $ S.memset p 0 (fromIntegral n)
 
-instance Binary Header where
-    get = readHeaderB
-    put = writeHeaderB
-
-instance Binary Person where
-    get = readPersonB
-    put = writePersonB
-
-instance Binary Address where
-    get = readAddressB
-    put = writeAddressB
-
 readPeopleB :: Word32 -> Get [Person]
 readPeopleB 0 = return []
 readPeopleB n = do
     p <- get
     ps <- readPeopleB (n - 1)
-    return $ p:ps
+    return (p:ps)
 
 readBookB :: Get (Header, [Person])
 readBookB = do
